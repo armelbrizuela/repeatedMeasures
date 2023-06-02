@@ -1,0 +1,172 @@
+---
+title: "Práctica de ANOVA de medidas repetidas"
+editor: visual
+editor_options: 
+  chunk_output_type: inline
+---
+
+Estos paquetes deben estar instalados:
+
+```{r}
+#| eval: false
+install.packages("hypr")
+install.packages("afex")
+install.packages("dplyr")
+install.packages("broom")
+install.packages("haven")
+install.packages("forcats")
+install.packages("emmeans")
+install.packages("ggbeeswarm")
+```
+
+Active los siguientes paquetes.
+
+```{r, warning = FALSE, message = FALSE}
+
+library(hypr)
+library(afex)
+library(dplyr)
+library(broom)
+library(haven)
+library(tidyr)
+library(emmeans)
+library(forcats)
+library(interactions)
+```
+
+Smelter y Calvillo (2020) explican lo siguiente: In Experiment 1, we examined the effect of pictures on the perceived accuracy of news headlines. We gave participants a set of true and false headlines either with or without a picture and they rated the headlines' accuracy. We predicted that true headlines would be perceived as more accurate than false headlines (Hypothesis 1). \[...\] we predicted that the presence of pictures would increase perceived accuracy (Hypothesis 2) for news headlines. We predicted that pictures would increase per- ceived accuracy for true and false headlines similarly (no interaction; Hypothesis 3).
+
+Lea el archivo **fakenews.sav** con `read_sav()` y elimine las etiquetas del SPSS con `zap_labels()`.
+
+```{r}
+
+
+```
+
+Seleccione las columnas `ID`, `age`, `gender`, `TRUE_PIC`, `TRUE_NOPICK`, `FAKE_PIC` y `FAKE_NOPIC`. Con `rename()` cambie los nombres de columna `TRUE_PIC` y `TRUE_NOPICK` a `TRUTH_PIC` y `TRUTH_NOPIC`.
+
+```{r}
+
+
+```
+
+Con `pivot_longer()` transforme los datos de formato `wide` a formato `long`.
+
+```{r}
+
+fakenewsLong <- fakenewsWide |>
+  pivot_longer(
+    cols = ,
+    names_to = c("headline", "image"),
+    names_sep = "_",
+    values_to = "accuracy")
+```
+
+Con `mutate()` y `fct()` transforme en objetos tipo `factor` las columnas `ID`, `gender`, `headline` e `image`. La columna `gender` es de tipo `numeric`, por lo que antes de transformarla en un factor debe transformarla en un columna de tipo `character`.
+
+```{r}
+
+fakenewsLong <- fakenewsLong |>
+  mutate(
+    gender = as.character(),
+    gender = fct(, levels = c("1", "2", "3")),
+    ID = fct(as.character()),
+    headline = fct(, levels = c("TRUTH", "FAKE")),
+    image = fct(, levels = c("PIC", "NOPIC")))
+```
+
+Con `summarise()`, `mean()` y `n()` muestre las medias de `age` para cada nivel de `gender`.
+
+```{r}
+
+fakenewsWide |>
+  summarise(
+    .by = ,
+    n = n(),
+    age = mean())
+```
+
+Con `summarise()`, `mean()` y `plot()` muestre las medias de `accuracy` para cada participante.
+
+```{r}
+
+fakenewsLong |>
+  summarise(.by = , accuracy = mean()) |>
+  plot()
+```
+
+Con la función `aov_ez()` estime un modelo ANOVA de medidas repetidas. La variable de respuesta es `accuracy` y los predictores son `headline` e `image`.
+
+```{r}
+
+modelo <- aov_ez(
+  id = "", 
+  dv = "",
+  within = c("", ""),
+  data = )
+```
+
+Muestre los resultados del modelo. Verifique si la interacción entre los predictores es estadísticamente significativa.
+
+![](resultados.png){fig-align="center"}
+
+```{r}
+
+summary()
+```
+
+Con `afex_plot()` grafique las medias de los 4 grupos conformados por los niveles de los factores `headline` e `image`.
+
+```{r}
+
+afex_plot(, x = c("", ""), error = "within")
+```
+
+Estime un contraste de medias basado en `headline`.
+
+```{r}
+
+medias <- emmeans(modelo, "")
+
+contraste <- list(contr.hypothesis(
+  
+    TRUTHvsFAKE =  ~ ,
+    
+    levels = c("", "")))
+
+contrast(medias, contraste)
+```
+
+Estime un contraste de medias basado en `image`.
+
+```{r}
+
+medias <- emmeans(modelo, "")
+
+contraste <- list(contr.hypothesis(
+    
+    PICvsNOPIC =  ~ ,
+    
+    levels = c("", "")))
+
+contrast(medias, contraste)
+```
+
+Interprete el siguiente contraste basado en la interacción entre `headline` e `image`.
+
+```{r}
+
+medias <- emmeans(modelo, c("headline", "image"))
+
+contraste <- list(contr.hypothesis(
+    
+    INTERACTION = PIC - NOPIC ~ TRUTH - FAKE,
+    
+    levels = c("TRUTH", "FAKE", "PIC", "NOPIC")))
+
+contrast(medias, contraste)
+```
+
+# Referencia
+
+Smelter, T. J., & Calvillo, D. P. (2020). Pictures and repeated exposure increase perceived accuracy of news headlines. *Applied Cognitive Psychology*, *34*(5), 1061-1071.

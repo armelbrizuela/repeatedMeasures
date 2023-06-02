@@ -1,0 +1,206 @@
+---
+title: "ANOVA de medidas repetidas"
+format: html
+editor: visual
+---
+
+```{r, eval=FALSE}
+
+install.packages("ggbeeswarm")
+install.packages("emmeans")
+install.packages("forcats")
+install.packages("readr")
+install.packages("hypr")
+install.packages("afex")  
+```
+
+```{r}
+
+library(emmeans)
+library(forcats)
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(hypr)
+library(afex)
+```
+
+Todos los modelos vistos hasta ahora asumen que los residuos
+
+1.  tienen una distribución (aproximadamente) normal,
+
+2.  tienen la misma varianza para los distintos valores predichos y
+
+3.  son independientes entre sí.
+
+Vamos a concentrarnos en los modelos que incumplen con el supuesto de independencia.
+
+Dos residuos son independientes entre sí cuando el valor de uno no permite predecir el valor del otro. Los residuos son dependientes cuando los datos se agrupan por persona, pareja, familia, aula, escuela, etc.
+
+Por ejemplo, si hiciéramos un estudio con parejas y quisiéramos predecir la satisfacción con la relación a partir de otros predictores (edad, nivel socioeconómico, religión, etc.) podríamos encontrarnos con datos como los siguientes.
+
+```{r}
+
+tibble(
+  participante = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+  pareja = c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5),
+  satisfaccion = c(2, 3, 4, 5, 1, 1, 2, 1, 3, 3),
+  edad = c(23, 34, 18, 19, 56, 59, 37, 33, 51, 42),
+  nivelSocioe = c(3, 3, 2, 2, 2, 2, 1, 1, 2, 2))
+```
+
+Otro ejemplo podría ser si hiciéramos un estudio para determinar el efecto del ruido sobre el desempeño en una tarea de memoria. En este estudio, todos los participantes serían expuestos a ambas condiciones.
+
+```{r}
+
+tibble(
+  participante = c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5),
+  condicion = rep(c("poco ruido", "mucho ruido"), 5),
+  rendimiento = c(2, 1, 4, 5, 1, 1, 5, 4, 8, 6))
+```
+
+En ambas situaciones, las observaciones pertenecientes a un mismo grupo o condición son dependientes.
+
+Para este tipo de situaciones donde se incumple el supuesto de independencia de los residuos, existen varias alternativas. A continuación se abordará el uso del ANOVA de medidas repetidas.
+
+Utilizaremos el ejemplo de Howell (2017, p. 477) sobre el efecto de un terremoto sobre el nivel de depresión: *Nolen-Hoeksema and Morrow (1991) had the good fortune to have administered a measure of depression to college students three weeks before the Loma Prieta earthquake in California in 1989. This was a major earthquake that would be expected to have measurable effects on students. Having collected these data, they went out and collected repeated data to track adjustment. The data that follow are modeled loosely on their findings. Our measurements are taken every three weeks, starting two weeks before the earthquake, and the data are shown in Table 18.1.*
+
+```{r}
+
+terremotoWide <- read_delim("terremoto.csv", delim = ";")
+```
+
+Es necesario pasar los datos de formato *wide* a formato *long*, para que exista una única variable con los niveles del factor `semana` y otra columna que incluya todas las puntuaciones del test de depresión, a la cual llamaremos `depresion`.
+
+```{r}
+
+terremotoLong <- terremotoWide |>
+  pivot_longer(
+    cols = S0:S12,
+    names_to = "semana",
+    values_to = "depresion",
+    names_transform = list(semana = as.factor))
+```
+
+Verificamos que `semana` realmente es un factor.
+
+```{r}
+
+levels(terremotoLong$semana)
+```
+
+Los niveles no tienen un orden adecuado, por lo que es necesario reordenarlos.
+
+```{r}
+
+terremotoLong <- terremotoLong |>
+  mutate(semana = fct_relevel(semana, "S0", "S3", "S6", "S9", "S12"))
+
+levels(terremotoLong$semana)
+```
+
+Independientemente de la semana, cada participante tiene cierto nivel de depresión debido a factores que no fueron medidos en este estudio.
+
+```{r}
+
+terremotoLong |>
+  summarise(.by = participante, media = mean(depresion), de = sd(depresion))
+
+terremotoLong |>
+  summarise(.by = participante, media = mean(depresion), de = sd(depresion)) |>
+  ggplot() +
+  aes(x = as.factor(participante), y = media) +
+  geom_point()
+```
+
+También vemos que hay las medias por semana son diferentes, es decir, es plausible sospechar que `semana` tiene un efecto estadísticamente significativo sobre `depresion`.
+
+```{r}
+
+terremotoLong |>
+  summarise(.by = semana, media = mean(depresion), de = sd(depresion))
+
+terremotoLong |>
+  summarise(.by = semana, media = mean(depresion), de = sd(depresion)) |>
+  ggplot() +
+  aes(x = as.factor(semana), y = media) +
+  geom_point()
+```
+
+Claramente, la media antes del terremoto (semana 0) es inferior a las medias posteriores al terremoto (semanas 3, 6, 9 y 12). Además, la media de la semana 3 es ligeramente inferior a las de las semanas 6, 9 y 12.
+
+Ahora vamos a realizar un ANOVA de medidas repetidas con la función `aov_ez()` del paquete `afex`.
+
+```{r}
+
+modelo <- aov_ez(
+  id = "participante", 
+  dv = "depresion",
+  within = "semana",
+  between = NULL,
+  observed = "semana",
+  data = terremotoLong)
+```
+
+```{r}
+
+modelo
+```
+
+En los resultados se aprecia que el factor `semana` es estadísticamente significativo, también se muestra el valor del estadístico $F$, los grados de libertad (df, *degrees of freedom*), la media del error cuadrático (MSE, *mean squared error*) y el tamaño del efecto (ges, *generalized eta-squared*).
+
+El ANOVA de medidas repetidas agrega un supuesto a los modelos vistos hasta ahora, el cual se conoce como [esfericidad](https://statistics.laerd.com/statistical-guides/sphericity-statistical-guide.php). La esfericidad de los datos se cumple cuando las varianzas de las diferencias entre todas las combinaciones de grupos son iguales. Este supuesto es conceptualmente equivalente al de homoscedasticidad, es decir, es similar al supuesto de que las varianzas de los grupos conformados por los factores son iguales. **La esfericidad solo es relevante cuando al menos uno de los factores posee tres o más niveles**.
+
+```{r}
+
+summary(modelo)
+```
+
+En este output, observamos lo siguiente:
+
+1.  *Univariate Type III Repeated-Measures ANOVA Assuming Sphericity*: Resultados que se basan sobre el supuesto de esfericidad.
+
+2.  *Mauchly Tests for Sphericity*: Resultado de la prueba de hipótesis nula de que las varianzas de las diferencias son iguales. Si esta hipótesis se rechaza, el supuesto de esfericidad no se cumple. Esta prueba es problemática, ya que a menudo no detecta desviaciones importantes de la esfericidad en muestras pequeñas, así como también detecta desviaciones pequeñas en muestras grandes.
+
+3.  *Greenhouse-Geisser and Huynh-Feldt Corrections for Departure from Sphericity*: Se muestra si el efecto del factor es estadísticamente significativo sin asumir la esfericidad. Debajo de *GG eps y HF eps* se muestra un número conocido como epsilon ($\varepsilon$), el cual es igual a 1 cuando los datos son esféricos. Cuando la estimación de Greenhouse-Geisser es superior a 0.75, este procedimiento tiene problemas para detectar el incumplimiento de la esfericidad, se debe utilizar la corrección de Huynh-Feldt.
+
+```{r}
+
+afex_plot(modelo, x = "semana", error = "within")
+```
+
+En lo que respecta los contrastes (comparaciones de medias), el paquete `afex` no reconoce los contarstes asignados al factor. Para estimar los contrastes, es necesario realizar realizar tres pasos:
+
+1.  Crear un objeto con las medias de los grupos mediante la función `emmeans()`.
+
+```{r}
+
+medias <- emmeans(modelo, "semana")
+medias
+```
+
+2.  Crear un objeto tipo `list` con los contrastes o comparaciones de medias de interés.
+
+```{r}
+
+contrastes <- list(contr.hypothesis(
+  
+  S0vsDespues = S0 ~ (S3 + S6 + S9 + S12)/4,
+  S3vsDespues = S3 ~ (S6 + S9 + S12)/3,
+  S6vsDespues = S6 ~ (S9 + S12)/2,
+  S9vsS12 = S9 ~ S12,
+  
+  levels = c("S0", "S3", "S6", "S9", "S12")))
+```
+
+3.  Estimar los contrastes mediante la función `contrast()`, la cual recibe los objestos `medias` y `contrastes`.
+
+```{r}
+
+contrast(medias, contrastes)
+```
+
+# Referencia
+
+Howell, D. C. (2017). *Fundamental Statistics for the Behavioral Sciences*. Cengage Learning.
