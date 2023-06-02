@@ -62,7 +62,7 @@ fakenewsLong <- fakenewsWide |>
     values_to = "accuracy")
 ```
 
-Con `mutate()` y `fct()` transforme en objetos tipo `factor` las columnas `ID`, `gender`, `headline` e `image`. La columna `gender` es de tipo `numeric`, por lo que antes de transformarla en un factor debe transformarla en un columna de tipo `character`.
+Con `mutate()` y `fct()` transforme en objetos tipo `factor` las columnas `ID`, `gender`, `headline` e `image`. Las columnas `ID` y `gender` es de tipo `numeric`, por lo que antes de transformarla en un factor debe transformarla en un columna de tipo `character`.
 
 ```{r}
 
