@@ -1,5 +1,5 @@
 ---
-title: "Práctica de ANOVA de medidas repetidas"
+title: "Respuestas de práctica (ANOVA de medidas repetidas)"
 editor: visual
 editor_options: 
   chunk_output_type: inline
@@ -40,14 +40,17 @@ Lea el archivo **fakenews.sav** con `read_sav()` y elimine las etiquetas del SPS
 
 ```{r}
 
-
+fakenewsWide <- read_sav("fakenews.sav") |>
+  zap_labels()
 ```
 
 Seleccione las columnas `ID`, `age`, `gender`, `TRUE_PIC`, `TRUE_NOPICK`, `FAKE_PIC` y `FAKE_NOPIC`. Con `rename()` cambie los nombres de columna `TRUE_PIC` y `TRUE_NOPICK` a `TRUTH_PIC` y `TRUTH_NOPIC`.
 
 ```{r}
 
-
+fakenewsWide <- fakenewsWide |>
+  select(ID, age, gender, TRUE_PIC, TRUE_NOPICK, FAKE_PIC, FAKE_NOPIC) |>
+  rename(TRUTH_PIC = TRUE_PIC, TRUTH_NOPIC = TRUE_NOPICK)
 ```
 
 Con `pivot_longer()` transforme los datos de formato `wide` a formato `long`.
@@ -56,7 +59,7 @@ Con `pivot_longer()` transforme los datos de formato `wide` a formato `long`.
 
 fakenewsLong <- fakenewsWide |>
   pivot_longer(
-    cols = ,
+    cols = TRUTH_PIC:FAKE_NOPIC,
     names_to = c("headline", "image"),
     names_sep = "_",
     values_to = "accuracy")
@@ -68,11 +71,11 @@ Con `mutate()` y `fct()` transforme en objetos tipo `factor` las columnas `ID`, 
 
 fakenewsLong <- fakenewsLong |>
   mutate(
-    gender = as.character(),
-    gender = fct(, levels = c("1", "2", "3")),
-    ID = fct(as.character()),
-    headline = fct(, levels = c("TRUTH", "FAKE")),
-    image = fct(, levels = c("PIC", "NOPIC")))
+    gender = as.character(gender),
+    gender = fct(gender, levels = c("1", "2", "3")),
+    ID = fct(as.character(ID)),
+    headline = fct(headline, levels = c("TRUTH", "FAKE")),
+    image = fct(image, levels = c("PIC", "NOPIC")))
 ```
 
 Con `summarise()`, `mean()` y `n()` muestre las medias de `age` para cada nivel de `gender`.
@@ -81,9 +84,9 @@ Con `summarise()`, `mean()` y `n()` muestre las medias de `age` para cada nivel 
 
 fakenewsWide |>
   summarise(
-    .by = ,
+    .by = gender,
     n = n(),
-    age = mean())
+    age = mean(age))
 ```
 
 Con `summarise()`, `mean()` y `plot()` muestre las medias de `accuracy` para cada participante.
@@ -91,7 +94,7 @@ Con `summarise()`, `mean()` y `plot()` muestre las medias de `accuracy` para cad
 ```{r}
 
 fakenewsLong |>
-  summarise(.by = , accuracy = mean()) |>
+  summarise(.by = ID, accuracy = mean(accuracy)) |>
   plot()
 ```
 
@@ -100,10 +103,10 @@ Con la función `aov_ez()` estime un modelo ANOVA de medidas repetidas. La varia
 ```{r}
 
 modelo <- aov_ez(
-  id = "", 
-  dv = "",
-  within = c("", ""),
-  data = )
+  id = "ID", 
+  dv = "accuracy",
+  within = c("headline", "image"), 
+  data = fakenewsLong)
 ```
 
 Muestre los resultados del modelo. Verifique si la interacción entre los predictores es estadísticamente significativa.
@@ -112,27 +115,27 @@ Muestre los resultados del modelo. Verifique si la interacción entre los predic
 
 ```{r}
 
-summary()
+summary(modelo)
 ```
 
 Con `afex_plot()` grafique las medias de los 4 grupos conformados por los niveles de los factores `headline` e `image`.
 
 ```{r}
 
-afex_plot(, x = c("", ""), error = "within")
+afex_plot(modelo, x = c("headline", "image"), error = "within")
 ```
 
 Estime un contraste de medias basado en `headline`.
 
 ```{r}
 
-medias <- emmeans(modelo, "")
+medias <- emmeans(modelo, "headline")
 
 contraste <- list(contr.hypothesis(
   
-    TRUTHvsFAKE =  ~ ,
+    TRUTHvsFAKE = TRUTH ~ FAKE,
     
-    levels = c("", "")))
+    levels = c("TRUTH", "FAKE")))
 
 contrast(medias, contraste)
 ```
@@ -141,13 +144,13 @@ Estime un contraste de medias basado en `image`.
 
 ```{r}
 
-medias <- emmeans(modelo, "")
+medias <- emmeans(modelo, "image")
 
 contraste <- list(contr.hypothesis(
     
-    PICvsNOPIC =  ~ ,
+    PICvsNOPIC = PIC ~ NOPIC,
     
-    levels = c("", "")))
+    levels = c("PIC", "NOPIC")))
 
 contrast(medias, contraste)
 ```
