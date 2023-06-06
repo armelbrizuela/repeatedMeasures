@@ -32,7 +32,7 @@ Todos los modelos vistos hasta ahora asumen que los residuos
 
 2.  tienen la misma varianza para los distintos valores predichos y
 
-3.  son independientes entre sí.
+3.  **son independientes entre sí**.
 
 Vamos a concentrarnos en los modelos que incumplen con el supuesto de independencia.
 
@@ -50,7 +50,7 @@ tibble(
   nivelSocioe = c(3, 3, 2, 2, 2, 2, 1, 1, 2, 2))
 ```
 
-Otro ejemplo podría ser si hiciéramos un estudio para determinar el efecto del ruido sobre el desempeño en una tarea de memoria. En este estudio, todos los participantes serían expuestos a ambas condiciones.
+Otro ejemplo podría ser si hiciéramos un estudio para determinar el efecto del ruido sobre el desempeño en una tarea de memoria. En este estudio, todos los participantes podrían ser expuestos a ambas condiciones.
 
 ```{r}
 
@@ -62,16 +62,16 @@ tibble(
 
 En ambas situaciones, las observaciones pertenecientes a un mismo grupo o condición son dependientes.
 
-Para este tipo de situaciones donde se incumple el supuesto de independencia de los residuos, existen varias alternativas. A continuación se abordará el uso del ANOVA de medidas repetidas.
+Para este tipo de situaciones donde se incumple el supuesto de independencia de los residuos, existen varias alternativas. A continuación se abordará el uso del **ANOVA de medidas repetidas**.
 
-Utilizaremos el ejemplo de Howell (2017, p. 477) sobre el efecto de un terremoto sobre el nivel de depresión: *Nolen-Hoeksema and Morrow (1991) had the good fortune to have administered a measure of depression to college students three weeks before the Loma Prieta earthquake in California in 1989. This was a major earthquake that would be expected to have measurable effects on students. Having collected these data, they went out and collected repeated data to track adjustment. The data that follow are modeled loosely on their findings. Our measurements are taken every three weeks, starting two weeks before the earthquake, and the data are shown in Table 18.1.*
+Utilizaremos el ejemplo de Howell (2017, p. 477) sobre el efecto de un terremoto sobre el nivel de depresión: *Nolen-Hoeksema and Morrow (1991) had the good fortune to have administered a measure of depression to college students three weeks before the Loma Prieta earthquake in California in 1989. This was a major earthquake that would be expected to have measurable effects on students. Having collected these data, they went out and collected repeated data to track adjustment. The data that follow are modeled loosely on their findings.*
 
 ```{r}
 
 terremotoWide <- read_delim("terremoto.csv", delim = ";")
 ```
 
-Es necesario pasar los datos de formato *wide* a formato *long*, para que exista una única variable con los niveles del factor `semana` y otra columna que incluya todas las puntuaciones del test de depresión, a la cual llamaremos `depresion`.
+Es necesario pasar los datos de formato *wide* a formato *long*, para que exista una única variable con los niveles del factor `semana` y otra columna que incluya todas las puntuaciones de depresión, a la cual llamaremos `depresion`.
 
 ```{r}
 
@@ -79,23 +79,16 @@ terremotoLong <- terremotoWide |>
   pivot_longer(
     cols = S0:S12,
     names_to = "semana",
-    values_to = "depresion",
-    names_transform = list(semana = as.factor))
-```
-
-Verificamos que `semana` realmente es un factor.
-
-```{r}
-
-levels(terremotoLong$semana)
-```
-
-Los niveles no tienen un orden adecuado, por lo que es necesario reordenarlos.
-
-```{r}
+    values_to = "depresion") 
 
 terremotoLong <- terremotoLong |>
-  mutate(semana = fct_relevel(semana, "S0", "S3", "S6", "S9", "S12"))
+  mutate(
+    semana = fct(semana, levels = c("S0", "S3", "S6", "S9", "S12")))
+```
+
+Verificamos que `semana` realmente sea un factor.
+
+```{r}
 
 levels(terremotoLong$semana)
 ```
@@ -104,28 +97,46 @@ Independientemente de la semana, cada participante tiene cierto nivel de depresi
 
 ```{r}
 
-terremotoLong |>
-  summarise(.by = participante, media = mean(depresion), de = sd(depresion))
+medias <- terremotoLong |>
+  summarise(
+    .by = estudiante, 
+    media = mean(depresion))
+
+medias
 
 terremotoLong |>
-  summarise(.by = participante, media = mean(depresion), de = sd(depresion)) |>
   ggplot() +
-  aes(x = as.factor(participante), y = media) +
-  geom_point()
+  geom_point(
+    aes(x = estudiante, y = depresion, group = semana, color = semana)) +
+  geom_point(
+    data = medias,
+    shape = 3,
+    aes(x = estudiante, y = media)) +
+  theme_bw()
 ```
 
-También vemos que hay las medias por semana son diferentes, es decir, es plausible sospechar que `semana` tiene un efecto estadísticamente significativo sobre `depresion`.
+También vemos que las medias por semana son diferentes, es decir, es plausible sospechar que `semana` tiene cierto efecto sobre `depresion`.
 
 ```{r}
 
-terremotoLong |>
-  summarise(.by = semana, media = mean(depresion), de = sd(depresion))
+medias <- terremotoLong |>
+  summarise(
+    .by = semana, 
+    media = mean(depresion))
+
+medias
 
 terremotoLong |>
-  summarise(.by = semana, media = mean(depresion), de = sd(depresion)) |>
   ggplot() +
-  aes(x = as.factor(semana), y = media) +
-  geom_point()
+  geom_jitter(
+    height = 0, 
+    width = 0.1,
+    aes(x=semana, y=depresion, group=estudiante, color=estudiante)) +
+  geom_point(
+    data = medias,
+    shape = 3,
+    aes(x = semana, y = media)) +
+  theme_bw()
 ```
 
 Claramente, la media antes del terremoto (semana 0) es inferior a las medias posteriores al terremoto (semanas 3, 6, 9 y 12). Además, la media de la semana 3 es ligeramente inferior a las de las semanas 6, 9 y 12.
@@ -135,10 +146,9 @@ Ahora vamos a realizar un ANOVA de medidas repetidas con la función `aov_ez()` 
 ```{r}
 
 modelo <- aov_ez(
-  id = "participante", 
+  id = "estudiante", 
   dv = "depresion",
   within = "semana",
-  between = NULL,
   observed = "semana",
   data = terremotoLong)
 ```
@@ -150,7 +160,20 @@ modelo
 
 En los resultados se aprecia que el factor `semana` es estadísticamente significativo, también se muestra el valor del estadístico $F$, los grados de libertad (df, *degrees of freedom*), la media del error cuadrático (MSE, *mean squared error*) y el tamaño del efecto (ges, *generalized eta-squared*).
 
-El ANOVA de medidas repetidas agrega un supuesto a los modelos vistos hasta ahora, el cual se conoce como [esfericidad](https://statistics.laerd.com/statistical-guides/sphericity-statistical-guide.php). La esfericidad de los datos se cumple cuando las varianzas de las diferencias entre todas las combinaciones de grupos son iguales. Este supuesto es conceptualmente equivalente al de homoscedasticidad, es decir, es similar al supuesto de que las varianzas de los grupos conformados por los factores son iguales. **La esfericidad solo es relevante cuando al menos uno de los factores posee tres o más niveles**.
+El ANOVA de medidas repetidas agrega un supuesto a los modelos vistos hasta ahora, el cual se conoce como [esfericidad](https://statistics.laerd.com/statistical-guides/sphericity-statistical-guide.php). La esfericidad de los datos se cumple cuando las varianzas de las diferencias entre todas las combinaciones de grupos son iguales. Este supuesto es conceptualmente equivalente al de homoscedasticidad, es decir, es similar al supuesto de que las varianzas de los grupos conformados por los factores son iguales.
+
+**La esfericidad solo es relevante cuando al menos uno de los factores posee tres o más niveles**.
+
+```{r}
+
+terremotoLong |>
+  filter(semana %in% c("S0", "S3")) |>
+  aov_ez(
+    id = "estudiante", 
+    dv = "depresion",
+    within = "semana",
+    observed = "semana")
+```
 
 ```{r}
 
@@ -170,7 +193,7 @@ En este output, observamos lo siguiente:
 afex_plot(modelo, x = "semana", error = "within")
 ```
 
-En lo que respecta los contrastes (comparaciones de medias), el paquete `afex` no reconoce los contarstes asignados al factor. Para estimar los contrastes, es necesario realizar realizar tres pasos:
+En lo que respecta a los contrastes (comparaciones de medias), el paquete `afex` no reconoce los contarstes asignados al factor. Para estimar los contrastes, es necesario realizar realizar tres pasos:
 
 1.  Crear un objeto con las medias de los grupos mediante la función `emmeans()`.
 
@@ -194,7 +217,7 @@ contrastes <- list(contr.hypothesis(
   levels = c("S0", "S3", "S6", "S9", "S12")))
 ```
 
-3.  Estimar los contrastes mediante la función `contrast()`, la cual recibe los objestos `medias` y `contrastes`.
+3.  Estimar los contrastes mediante la función `contrast()`, la cual recibe los objetos `medias` y `contrastes`.
 
 ```{r}
 
