@@ -160,7 +160,7 @@ modelo
 
 En los resultados se aprecia que el factor `semana` es estadísticamente significativo, también se muestra el valor del estadístico $F$, los grados de libertad (df, *degrees of freedom*), la media del error cuadrático (MSE, *mean squared error*) y el tamaño del efecto (ges, *generalized eta-squared*).
 
-El ANOVA de medidas repetidas agrega un supuesto a los modelos vistos hasta ahora, el cual se conoce como [esfericidad](https://statistics.laerd.com/statistical-guides/sphericity-statistical-guide.php). La esfericidad de los datos se cumple cuando las varianzas de las diferencias entre todas las combinaciones de grupos son iguales. Este supuesto es conceptualmente equivalente al de homoscedasticidad, es decir, es similar al supuesto de que las varianzas de los grupos conformados por los factores son iguales.
+El ANOVA de medidas repetidas agrega un supuesto a los modelos vistos hasta ahora, el cual se conoce como [esfericidad](https://personal.utdallas.edu/~herve/abdi-GreenhouseGeisser2010-pretty.pdf). La esfericidad de los datos se cumple cuando las varianzas de las diferencias de medias entre todas las combinaciones de grupos son iguales. Este supuesto es conceptualmente equivalente al de homoscedasticidad, es decir, es similar al supuesto de que las varianzas de los grupos conformados por los factores son iguales.
 
 **La esfericidad solo es relevante cuando al menos uno de los factores posee tres o más niveles**.
 
@@ -186,7 +186,7 @@ En este output, observamos lo siguiente:
 
 2.  *Mauchly Tests for Sphericity*: Resultado de la prueba de hipótesis nula de que las varianzas de las diferencias son iguales. Si esta hipótesis se rechaza, el supuesto de esfericidad no se cumple. Esta prueba es problemática, ya que a menudo no detecta desviaciones importantes de la esfericidad en muestras pequeñas, así como también detecta desviaciones pequeñas en muestras grandes.
 
-3.  *Greenhouse-Geisser and Huynh-Feldt Corrections for Departure from Sphericity*: Se muestra si el efecto del factor es estadísticamente significativo sin asumir la esfericidad. Debajo de *GG eps y HF eps* se muestra un número conocido como epsilon ($\varepsilon$), el cual es igual a 1 cuando los datos son esféricos. Cuando la estimación de Greenhouse-Geisser es superior a 0.75, este procedimiento tiene problemas para detectar el incumplimiento de la esfericidad, se debe utilizar la corrección de Huynh-Feldt.
+3.  *Greenhouse-Geisser and Huynh-Feldt Corrections for Departure from Sphericity*: Se muestra si el efecto del factor es estadísticamente significativo sin asumir la esfericidad. Debajo de *GG eps y HF eps* se muestra un número conocido como epsilon ($\varepsilon$), el cual es igual a 1 cuando los datos son esféricos. Field (2018, p. 850) plantea lo siguiente: *When the Greenhouse--Geisser estimate is greater than 0.75 the correction is too conservative (Huynh & Feldt, 1976), and this can also be true when the sphericity estimate is as high as 0.90 (Collier, Baker, Mandeville, & Hayes, 1967). However, the Huynh--Feldt estimate tends to overestimate sphericity (Maxwell & Delaney, 1990). Many authors recommend that when estimates of sphericity are greater than 0.75 the Huynh--Feldt estimate should be used, but when the Greenhouse--Geisser estimate of sphericity is less than 0.75 or nothing is known about sphericity the Greenhouse--Geisser correction should be used (Barcikowski & Robey, 1984; Girden, 1992; Huynh & Feldt, 1976). Stevens (2002) suggests taking an average of the two*.
 
 ```{r}
 
@@ -225,5 +225,7 @@ contrast(medias, contrastes)
 ```
 
 # Referencia
+
+Field, A. (2018). *Discovering Statistics Using IBM SPSS Statistics*. SAGE.
 
 Howell, D. C. (2017). *Fundamental Statistics for the Behavioral Sciences*. Cengage Learning.
